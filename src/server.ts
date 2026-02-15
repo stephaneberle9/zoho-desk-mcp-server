@@ -18,7 +18,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { ZohoAPI } from './zoho-api.js';
 import { tools } from './tools.js';
-import { loadConfig } from './config.js';
+import { loadConfig, persistAccessToken } from './config.js';
 
 export class ZohoDeskServer {
   private server: Server;
@@ -46,8 +46,12 @@ export class ZohoDeskServer {
       clientSecret: this.config.clientSecret,
       region: this.config.region,
       onTokenRefresh: (newToken: string) => {
-        console.error('📝 New token available:', newToken.substring(0, 20) + '...');
-        console.error('⚠️  Update your config files with the new token');
+        if (persistAccessToken(newToken)) {
+          console.error('✅ Access token refreshed and saved to config.json');
+        } else {
+          console.error('📝 New token available:', newToken.substring(0, 20) + '...');
+          console.error('⚠️  Could not save to config.json — update manually');
+        }
       }
     });
     this.slackWebhookUrl = this.config.slackWebhookUrl || process.env.SLACK_WEBHOOK_URL || null;

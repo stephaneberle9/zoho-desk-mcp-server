@@ -8,7 +8,7 @@
  * @link https://github.com/vapvarun/zoho-desk-mcp-server
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -42,6 +42,23 @@ export interface ZohoConfig {
   clientSecret?: string;
   refreshToken?: string;
   region?: ZohoRegion;
+}
+
+export function getConfigPath(): string {
+  return join(__dirname, '..', 'config.json');
+}
+
+export function persistAccessToken(newToken: string): boolean {
+  try {
+    const configPath = getConfigPath();
+    const configFile = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(configFile);
+    config.accessToken = newToken;
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 export function loadConfig(): ZohoConfig {

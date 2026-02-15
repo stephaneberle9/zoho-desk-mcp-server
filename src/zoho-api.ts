@@ -8,6 +8,8 @@
  * @link https://github.com/vapvarun/zoho-desk-mcp-server
  */
 
+import { ZOHO_DESK_URLS, ZOHO_ACCOUNTS_URLS, type ZohoRegion } from './config.js';
+
 interface ZohoResponse<T = any> {
   code: number;
   data: T;
@@ -23,8 +25,8 @@ interface OAuthTokenResponse {
 }
 
 export class ZohoAPI {
-  private static readonly API_BASE = 'https://desk.zoho.com/api/v1';
-  private static readonly AUTH_BASE = 'https://accounts.zoho.com/oauth/v2';
+  private readonly apiBase: string;
+  private readonly authBase: string;
 
   private accessToken: string;
   private orgId: string;
@@ -40,9 +42,13 @@ export class ZohoAPI {
       refreshToken?: string;
       clientId?: string;
       clientSecret?: string;
+      region?: ZohoRegion;
       onTokenRefresh?: (newToken: string) => void;
     }
   ) {
+    const region = options?.region || 'US';
+    this.apiBase = `${ZOHO_DESK_URLS[region]}/api/v1`;
+    this.authBase = `${ZOHO_ACCOUNTS_URLS[region]}/oauth/v2`;
     this.accessToken = accessToken;
     this.orgId = orgId;
     this.refreshToken = options?.refreshToken;
@@ -55,12 +61,12 @@ export class ZohoAPI {
    * OAUTH METHODS
    * =========================== */
 
-  static async refreshAccessToken(
+  async refreshAccessToken(
     clientId: string,
     clientSecret: string,
     refreshToken: string
   ): Promise<OAuthTokenResponse | null> {
-    const response = await fetch(`${this.AUTH_BASE}/token`, {
+    const response = await fetch(`${this.authBase}/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -86,7 +92,7 @@ export class ZohoAPI {
     query?: Record<string, string>,
     retryCount = 0
   ): Promise<ZohoResponse<T>> {
-    let url = `${ZohoAPI.API_BASE}${endpoint}`;
+    let url = `${this.apiBase}${endpoint}`;
 
     if (query) {
       const params = new URLSearchParams(query);
@@ -117,7 +123,7 @@ export class ZohoAPI {
         // Try to refresh token automatically
         if (this.refreshToken && this.clientId && this.clientSecret) {
           console.error('🔄 Access token expired, refreshing automatically...');
-          const tokenResponse = await ZohoAPI.refreshAccessToken(
+          const tokenResponse = await this.refreshAccessToken(
             this.clientId,
             this.clientSecret,
             this.refreshToken

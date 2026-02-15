@@ -44,6 +44,7 @@ export class ZohoDeskServer {
       refreshToken: this.config.refreshToken,
       clientId: this.config.clientId,
       clientSecret: this.config.clientSecret,
+      region: this.config.region,
       onTokenRefresh: (newToken: string) => {
         console.error('📝 New token available:', newToken.substring(0, 20) + '...');
         console.error('⚠️  Update your config files with the new token');

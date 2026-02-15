@@ -15,12 +15,33 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+export type ZohoRegion = 'US' | 'EU' | 'IN' | 'AU' | 'JP' | 'CA';
+
+export const ZOHO_DESK_URLS: Record<ZohoRegion, string> = {
+  US: 'https://desk.zoho.com',
+  EU: 'https://desk.zoho.eu',
+  IN: 'https://desk.zoho.in',
+  AU: 'https://desk.zoho.com.au',
+  JP: 'https://desk.zoho.jp',
+  CA: 'https://desk.zohocloud.ca',
+};
+
+export const ZOHO_ACCOUNTS_URLS: Record<ZohoRegion, string> = {
+  US: 'https://accounts.zoho.com',
+  EU: 'https://accounts.zoho.eu',
+  IN: 'https://accounts.zoho.in',
+  AU: 'https://accounts.zoho.com.au',
+  JP: 'https://accounts.zoho.jp',
+  CA: 'https://accounts.zohocloud.ca',
+};
+
 export interface ZohoConfig {
   accessToken: string;
   orgId: string;
   clientId?: string;
   clientSecret?: string;
   refreshToken?: string;
+  region?: ZohoRegion;
 }
 
 export function loadConfig(): ZohoConfig {
@@ -32,6 +53,7 @@ export function loadConfig(): ZohoConfig {
       clientId: process.env.ZOHO_CLIENT_ID,
       clientSecret: process.env.ZOHO_CLIENT_SECRET,
       refreshToken: process.env.ZOHO_REFRESH_TOKEN,
+      region: (process.env.ZOHO_REGION as ZohoRegion) || 'US',
     };
   }
 

@@ -76,40 +76,202 @@ npm start
 
 ## ⚙️ Configuration
 
-### Getting Zoho Desk Credentials
+Choose one of the following methods to configure your Zoho Desk credentials:
 
-1. **Create Zoho API Client**:
-   - Go to [Zoho API Console](https://api-console.zoho.com/)
-   - Create a new "Self Client" application
-   - Note your Client ID and Client Secret
+### Method 1: Semi-Automated Setup with config.json (Recommended)
 
-2. **Generate Tokens**:
-   - Use OAuth 2.0 flow to get access token and refresh token
-   - Required scopes: `Desk.tickets.ALL`, `Desk.contacts.READ`, `Desk.settings.READ`
+This method uses a PowerShell script to automatically exchange your authorization code for tokens and create the `config.json` file.
 
-3. **Get Organization ID**:
-   - Found in Zoho Desk Settings → Developer Space → API
-   - Or in your Zoho Desk URL: `https://desk.zoho.com/support/YourOrgID`
+#### Step 1: Create Zoho API Client
 
-### Configuration Methods
+- Go to [Zoho API Console](https://api-console.zoho.com/) (or your regional URL)
+- Create a new **"Self Client"** application
 
-#### Option 1: Config File (Recommended for Development)
+#### Step 2: Generate Authorization Code
 
-Create `config.json` in the project root:
+- In your Self Client, go to the **"Generate Code"** tab
+- Enter required scopes (comma-separated):
 
-```json
-{
-  "accessToken": "1000.xxxxx...",
-  "orgId": "657932157",
-  "clientId": "1000.XXXXX...",
-  "clientSecret": "xxxxx...",
-  "refreshToken": "1000.xxxxx..."
-}
+  ```text
+  Desk.tickets.ALL,Desk.contacts.ALL,Desk.settings.READ,Desk.basic.READ,Desk.search.READ,Desk.tasks.ALL
+  ```
+
+- Set a description (e.g. "MCP Server") and expiry duration (default 3 minutes)
+- Click **"Create"**, select your Zoho portal, then click **"Create"** again
+- Click **"Download"** to save the `self_client.json` file
+
+#### Step 3: Run Setup Script
+
+Run the included PowerShell script — it reads the downloaded JSON, exchanges the code for tokens, and creates the `config.json` file automatically:
+
+```powershell
+# Auto-detects the latest self_client*.json in your Downloads folder
+./setup-token.ps1
+
+# Or specify the file explicitly
+./setup-token.ps1 -JsonFile ~/Downloads/self_client.json
 ```
+
+> **macOS/Linux**: PowerShell is available cross-platform as `pwsh`. Install it with:
+>
+> - **macOS**: `brew install powershell/tap/powershell`
+> - **Ubuntu/Debian**: `sudo snap install powershell --classic`
+> - **Other Linux**: See [Installing PowerShell on Linux](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux)
+>
+> Then run: `pwsh ./setup-token.ps1`
+
+#### Step 4: Add Organization ID
+
+- Go to [Zoho Desk](https://desk.zoho.com/) (or your regional URL)
+- Navigate to **Settings** → **Developer Space** → **APIs**
+- Your Org ID is listed under **API Details**
+- Add the `orgId` field to your `config.json`:
+
+  ```json
+  {
+    "accessToken": "1000.xxxxx...",
+    "clientId": "1000.XXXXX...",
+    "clientSecret": "xxxxx...",
+    "refreshToken": "1000.xxxxx...",
+    "region": "EU",
+    "orgId": "657932157"
+  }
+  ```
+
+#### Step 5: Test the Connection
+
+```powershell
+./test-connection.ps1
+```
+
+You should see your region, org ID, and the number of tickets in your Zoho Desk account:
+
+```text
+Testing Zoho Desk API connection...
+  Region: EU (https://desk.zoho.eu)
+  Org ID: 20111145693
+SUCCESS: Connected to Zoho Desk API
+Tickets returned: 2
+```
+
+If it fails with `INVALID_OAUTH`, your access token may have expired — generate a fresh authorization code (step 2) and run the setup script again (step 3).
+
+**Your `config.json` is ready now!**
 
 **⚠️ IMPORTANT**: Never commit `config.json` to git! It's already in `.gitignore`.
 
-#### Option 2: Environment Variables (Recommended for Production)
+---
+
+### Method 2: Manual Setup with config.json
+
+This method uses curl to manually exchange your authorization code and create the `config.json` file by hand. You'll create the config file first and fill in the details progressively as you obtain them.
+
+#### Step 1: Create the config.json file
+
+Copy the template to create your configuration file:
+
+```bash
+cp config.example.json config.json
+```
+
+Open `config.json` in your editor. It should look like this:
+
+```json
+{
+  "accessToken": "YOUR_ACCESS_TOKEN",
+  "orgId": "YOUR_ORG_ID",
+  "clientId": "YOUR_CLIENT_ID",
+  "clientSecret": "YOUR_CLIENT_SECRET",
+  "refreshToken": "YOUR_REFRESH_TOKEN",
+  "region": "US"
+}
+```
+
+Set your `region` (options: `US`, `EU`, `IN`, `AU`, `JP`, `CA`, defaults to `US` if omitted). Leave the other placeholders for now — you'll fill them in as you complete the following steps.
+
+#### Step 2: Create Zoho API Client
+
+- Go to [Zoho API Console](https://api-console.zoho.com/) (or your regional URL)
+- Create a new **"Self Client"** application
+- Copy your **Client ID** and **Client Secret** into your `config.json`
+
+#### Step 3: Generate Authorization Code
+
+- In your Self Client, go to the **"Generate Code"** tab
+- Enter required scopes (comma-separated):
+
+  ```text
+  Desk.tickets.ALL,Desk.contacts.ALL,Desk.settings.READ,Desk.basic.READ,Desk.search.READ,Desk.tasks.ALL
+  ```
+
+- Set a description (e.g. "MCP Server") and expiry duration (default 3 minutes)
+- Click **"Create"**, select your Zoho portal, then click **"Create"** again
+- Copy the authorization code
+
+#### Step 4: Exchange Code for Tokens
+
+Run this curl command using your Client ID, Client Secret, and authorization code (adjust the URL for your region):
+
+```bash
+curl -X POST "https://accounts.zoho.com/oauth/v2/token" \
+  -d "grant_type=authorization_code" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "code=YOUR_AUTHORIZATION_CODE"
+```
+
+**Regional Accounts URLs:**
+
+| Region | Accounts URL |
+| --------- | ------------ |
+| US | `https://accounts.zoho.com` |
+| EU | `https://accounts.zoho.eu` |
+| India | `https://accounts.zoho.in` |
+| Australia | `https://accounts.zoho.com.au` |
+| Japan | `https://accounts.zoho.jp` |
+| Canada | `https://accounts.zohocloud.ca` |
+
+The response will contain `access_token` and `refresh_token`. Copy these values into your `config.json`:
+
+- `access_token` → `accessToken` field
+- `refresh_token` → `refreshToken` field
+
+The refresh token does not expire and is used to generate new access tokens when they expire (every 1 hour).
+
+#### Step 5: Get Organization ID
+
+- Go to [Zoho Desk](https://desk.zoho.com/) (or your regional URL)
+- Navigate to **Settings** → **Developer Space** → **APIs**
+- Your Org ID is listed under **API Details**
+- Update the `orgId` field in your `config.json`
+
+#### Step 6: Test the Connection
+
+```powershell
+./test-connection.ps1
+```
+
+You should see your region, org ID, and the number of tickets in your Zoho Desk account:
+
+```text
+Testing Zoho Desk API connection...
+  Region: EU (https://desk.zoho.eu)
+  Org ID: 20111145693
+SUCCESS: Connected to Zoho Desk API
+Tickets returned: 2
+```
+
+If it fails with `INVALID_OAUTH`, your access token may have expired — generate a fresh authorization code (step 3) and exchange it for a new access and refresh token pair (step 4).
+
+**Your `config.json` is ready now!**
+
+**⚠️ IMPORTANT**: Never commit `config.json` to git! It's already in `.gitignore`.
+
+---
+
+### Method 3: Environment Variables (For Production)
+
+Instead of using a `config.json` file, you can configure credentials via environment variables:
 
 ```bash
 export ZOHO_ACCESS_TOKEN="1000.xxxxx..."
@@ -117,7 +279,10 @@ export ZOHO_ORG_ID="657932157"
 export ZOHO_CLIENT_ID="1000.XXXXX..."
 export ZOHO_CLIENT_SECRET="xxxxx..."
 export ZOHO_REFRESH_TOKEN="1000.xxxxx..."
+export ZOHO_REGION="US"  # US, EU, IN, AU, JP, or CA
 ```
+
+See the [Usage](#-usage) section below for how to pass these to Claude Desktop.
 
 ---
 
@@ -125,7 +290,9 @@ export ZOHO_REFRESH_TOKEN="1000.xxxxx..."
 
 ### With Claude Desktop
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
+The server automatically reads credentials from the `config.json` file located in the Zoho Desk MCP Server's root directory, so no `env` block is needed:
 
 ```json
 {
@@ -134,11 +301,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
       "command": "node",
       "args": [
         "/absolute/path/to/zoho-desk-mcp-server/build/index.js"
-      ],
-      "env": {
-        "ZOHO_ACCESS_TOKEN": "your_access_token",
-        "ZOHO_ORG_ID": "your_org_id"
-      }
+      ]
     }
   }
 }
@@ -146,14 +309,35 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 
 **Restart Claude Desktop** for changes to take effect.
 
+> **Note**: If you prefer environment variables over using the `config.json` file, pass **all** required vars in the `env` block:
+>
+> ```json
+> {
+>   "mcpServers": {
+>     "zoho-desk": {
+>       "command": "node",
+>       "args": ["/absolute/path/to/zoho-desk-mcp-server/build/index.js"],
+>       "env": {
+>         "ZOHO_ACCESS_TOKEN": "1000.xxxxx...",
+>         "ZOHO_ORG_ID": "657932157",
+>         "ZOHO_CLIENT_ID": "1000.XXXXX...",
+>         "ZOHO_CLIENT_SECRET": "xxxxx...",
+>         "ZOHO_REFRESH_TOKEN": "1000.xxxxx...",
+>         "ZOHO_REGION": "US"
+>       }
+>     }
+>   }
+> }
+> ```
+
 ### From Command Line
 
 ```bash
-# Using environment variables
-ZOHO_ACCESS_TOKEN="..." ZOHO_ORG_ID="..." node build/index.js
-
-# Using config.json
+# Using config.json (recommended)
 node build/index.js
+
+# Using environment variables
+ZOHO_ACCESS_TOKEN="..." ZOHO_ORG_ID="..." ZOHO_REGION="EU" node build/index.js
 ```
 
 ### Example Conversations with Claude
